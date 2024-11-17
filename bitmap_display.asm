@@ -13,6 +13,7 @@
 # - Base Address for Display: 0x10008000 ($gp)
 ##############################################################################
     .data
+    .include"pixel_draw.asm"
 ADDR_DSPL:
     .word 0x10008000
 
@@ -20,9 +21,9 @@ ADDR_DSPL:
 	.globl main
 
 main:
-    li $t1, 0xff0000        # $t1 = red
-    li $t2, 0x00ff00        # $t2 = green
-    li $t3, 0x0000ff        # $t3 = blue
+    li $t1, 0xff0000        # red
+    li $t2, 0x00ff00        # green
+    li $t3, 0x0000ff        # blue
 
     lw $t0, ADDR_DSPL       # $t0 = base address for display
     sw $t1, 0($t0)          # paint the first unit (i.e., top-left) red
