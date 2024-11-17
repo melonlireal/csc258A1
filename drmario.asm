@@ -25,8 +25,11 @@ capsule_y:          .word       0
 ADDR_DSPL:
     .word 0x10008000
 # The address of the keyboard. Don't forget to connect it!
+
 ADDR_KBRD:
     .word 0xffff0000
+    .text
+	.globl main
 
 ##############################################################################
 # Mutable Data
@@ -35,11 +38,8 @@ ADDR_KBRD:
 ##############################################################################
 # Code
 ##############################################################################
-.text
 # ...
 
-	
-	.globl main
 
     # Run the game.
 main:
@@ -54,10 +54,14 @@ main:
     li $t3, 0x00ffff
     li $t4, 0xffffff
     li $t5, 0x000000
-    li $t6, 0x000000
-
-    # this t7, t8 and t9 are now free
+    .eqv red $t1
+    .eqv yellow $t2
+    .eqv blue $t3
+    .eqv white $t4
+    .eqv color $t5
+    # thus t6, t7, t8 and t9 are now free
     jal draw_scene
+    jal draw_pill
     # Initialize the game
     
     
@@ -68,31 +72,36 @@ game_loop:
 	# 2b. Update locations (capsules)
 	# 3. Draw the screen
 	# 4. Sleep
-
     # 5. Go back to Step 1
-    collision_checker:
+    lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
+    lw $t8, 0($t0)                  # Load first word from keyboard
+    beq $t8, 1, keyboard_input # check if there is key input
     
     cancel_checker:
     
+    li 	$v0, 32
+	li 	$a0, 500
+	syscall # sleep for 0.5 sec
     j game_loop
     
     
-    
-    
 draw_scene:
+    lw $t0 displayaddress
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
     draw_bottle:
         addi $a0, $zero, 2          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 8         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
         addi $a2, $zero, 17          # Set the width of the rectangle (in pixels)
         addi $a3, $zero, 24          # Set the height of the rectangle (in pixels)
-        add $t6, $t4, $zero
+        add color, white, $zero
             jal draw_rect
             
         addi $a0, $zero, 3 
         addi $a1, $zero, 9    
         addi $a2, $zero, 15    
         addi $a3, $zero, 22         
-        add $t6, $t5, $zero # erase the center and lid by drawing it black
+        li color 0x000000 # erase the center and lid by drawing it black
             jal draw_rect
         addi $a0, $zero, 9
         addi $a1, $zero, 8
@@ -104,27 +113,44 @@ draw_scene:
         addi $a1, $zero, 5
         addi $a2, $zero, 1         
         addi $a3, $zero, 3   
-        add $t6, $t4, $zero # draw the 2 pointing out in white
+        add color, white, $zero # draw the 2 pointing out in white
             jal draw_rect
         addi $a0, $zero, 12
         addi $a1, $zero, 5
         addi $a2, $zero, 1      
         addi $a3, $zero, 3       
             jal draw_rect
+        addi $a2, $zero, 1      
+        addi $a3, $zero, 1
     draw_virus_art:
         addi $a0, $zero, 1          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add $t6, $t1, $zero
-            jal draw_dot
+        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        add color, red, $zero
+            jal draw_rect
         addi $a0, $zero, 3          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add $t6, $t2, $zero
-            jal draw_dot
+        add color, yellow, $zero
+            jal draw_rect
         addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add $t6, $t3, $zero
-            jal draw_dot
-jr $ra
+        add color, blue, $zero
+            jal draw_rect
+    draw_virus:
+        addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        add color, red, $zero
+            jal draw_rect
+        addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        add color, yellow, $zero
+            jal draw_rect
+        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        add color, blue, $zero
+            jal draw_rect
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4 
+        jr $ra
     
 #  The rectangle drawing function
 #
@@ -151,6 +177,7 @@ draw_rect:
         sw $t1, 0($sp)
         addi $sp, $sp, -4
         sw $t2, 0($sp)
+        
         jal draw_line               # call the draw_line function
         
 # restore all the registers that were stored on the stack
@@ -179,22 +206,11 @@ draw_rect:
     lw $t0, displayaddress
 jr $ra                      # return to the calling program
 
-#
 #  The line drawing function
-#
 #  $a0 = X coordinate for start of the line
 #  $a1 = Y coordinate for start of the line
 #  $a2 = length of the line
 #  
-draw_dot:
-    lw $t0, displayaddress      # $t0 = base address for display
-    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
-    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
-    add $t7, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
-    add $t7, $t7, $a0           # Add the X offset to $t2 ($t2 now has the starting location of the line in bitmap memory)
-    sw $t6, 0($t7)              # Draw the pixel at location
-jr $ra
-
 draw_line:
     lw $t0, displayaddress      # $t0 = base address for display
     sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
@@ -206,7 +222,7 @@ draw_line:
     add $t3, $t2, $a2           # Calculate the address of the final point in the line, store result in $t3.
     # Start the loop
     line_start:
-        sw $t6, 0($t2)              # Draw the pixel at location
+        sw color, 0($t2)              # Draw the pixel at location
         # while current pixel has not reached end
         # Loop until the current pixel has reached the final point in the line
         addi $t2, $t2, 4            # Move the current location to the next pixel
@@ -218,13 +234,115 @@ draw_line:
     # Return to calling program
 jr $ra
 
+
+# generate a random pill at t
+# a0 x coord
+# a1 y coord
+# t5 color pill 
 draw_pill:
-jr $ra
-
-draw_virus:
-jr $ra
-
-draw_score:
-
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp)
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 6
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    jal draw_rect
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 7
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    jal draw_rect
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
     jr $ra
-# generate a random pill
+    
+    
+set_random_color:
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $a1, 0($sp)
+    li $v0, 42
+    li $a0, 0
+    li $a1, 3
+    syscall
+    beq $a0, 0, set_red
+    beq $a0, 1, set_yellow
+    beq $a0, 2, set_blue
+    set_red:
+        add color, red, $zero
+        j end
+    set_yellow:
+        add color, yellow, $zero
+        j end
+    set_blue:
+        add color, blue, $zero
+        j end
+    end:
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4 
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4 
+    jr $ra
+    
+    
+
+
+# do this by erasing current pos and redraw pill at new pos
+# s0 curr x coord part1
+# s1 curr y coord part1
+# s2 curr x coord part2
+# s3 curr y coord part2
+# s4 part1 col
+# s5 part2 col
+move_pill:
+
+
+keyboard_input:
+    lw $a0, 4($t0) # Load second word from keyboard
+    beq $a0, 119, respond_to_W
+    beq $a0, 97, respond_to_A
+    beq $a0, 115, respond_to_S
+    beq $a0, 100, respond_to_D
+    beq $a0, 0x71, respond_to_Q
+    jr $ra
+
+respond_to_W:
+    li $v0, 1
+    syscall
+    
+    jr $ra
+    donothingW:
+    jr $ra
+    
+respond_to_A:
+    li $v0, 1
+    syscall
+    
+    jr $ra
+    donothingA:
+    jr $ra
+    
+respond_to_S:
+    li $v0, 1
+    syscall
+    
+    jr $ra
+    donothingS:
+    jr $ra
+    
+respond_to_D:
+    li $v0, 1
+    syscall
+    
+    jr $ra
+    donothingD:
+    jr $ra
+    
+respond_to_Q:
+	li $v0, 10                      # Quit gracefully
+	syscall
+    
+collision_checker:
