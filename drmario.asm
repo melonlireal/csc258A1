@@ -65,6 +65,7 @@ main:
     # Initialize the game
     
     
+    
 game_loop:
     # 1a. Check if key has been pressed
     # 1b. Check which key has been pressed
@@ -76,7 +77,8 @@ game_loop:
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
     lw $t8, 0($t0)                  # Load first word from keyboard
     beq $t8, 1, keyboard_input # check if there is key input
-    
+    li $v0, 1
+    syscall
     cancel_checker:
     
     li 	$v0, 32
@@ -210,7 +212,6 @@ jr $ra                      # return to the calling program
 #  $a0 = X coordinate for start of the line
 #  $a1 = Y coordinate for start of the line
 #  $a2 = length of the line
-#  
 draw_line:
     lw $t0, displayaddress      # $t0 = base address for display
     sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
@@ -300,6 +301,7 @@ set_random_color:
 move_pill:
 
 
+
 keyboard_input:
     lw $a0, 4($t0) # Load second word from keyboard
     beq $a0, 119, respond_to_W
@@ -310,18 +312,34 @@ keyboard_input:
     jr $ra
 
 respond_to_W:
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
     li $v0, 1
     syscall
+    addi ,$a0 ,$t6,-1
+    addi , $a1, $t7, -1
+    lw color, 0($t0)
+    # beg blah blah donothing
     
-    jr $ra
+    jal draw_line
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
     donothingW:
     jr $ra
     
 respond_to_A:
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
     li $v0, 1
     syscall
+    addi ,$a0 ,$t6,-1
+    addi , $a1, $t7, -1
+    lw color, 0($t0)
+    # beg blah blah donothing
     
-    jr $ra
+    jal draw_line
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
     donothingA:
     jr $ra
     
