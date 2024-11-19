@@ -86,7 +86,6 @@ game_loop:
     lw $t8, 0($t0)                  # Load first word from keyboard
     beq $t8, 1, keyboard_input # check if there is key input
     # jal respond_to_S
-    cancel_checker:
     
     li 	$v0, 32
 	li 	$a0, 16
@@ -246,12 +245,17 @@ jr $ra
 # a0 x coord
 # a1 y coord
 draw_pill:
+#
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp)
+#
+
     li $s0, 10
     li $s1, 6
     li $s2, 10
     li $s3, 7
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp)
+    jal collision_checker
+    beq $s4, 1 respond_to_Q
     jal set_random_color
     addi $a0, $zero, 10
     addi $a1, $zero, 6
@@ -428,6 +432,7 @@ respond_to_S:
     # beg blah blah donothingA
     over_S:
     # load stuff
+    #jal cancel_checker
     jal draw_pill
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
@@ -623,7 +628,15 @@ do_nothing:
     addi $sp, $sp, 4 
     #
     jr $ra
+    
 
+cancel_checker:
+    
+    
+    
+    j cancel_checker
+    no_cancel:
+    jr $ra
     
 fetch_color:
     lw $t0, displayaddress      # $t0 = base address for display
@@ -633,7 +646,6 @@ fetch_color:
     add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
     lw color, 0($t2)              # fetch color
     jr $ra
-
 
 collision_checker: # check collision by checking if the new position has color or not
     #
