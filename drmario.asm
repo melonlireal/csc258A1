@@ -67,7 +67,7 @@ main:
     .eqv x_pill2 $t6
     .eqv y_pill2 $t7
     # NEVER TOUCH THESE
-    # thus $t2 - $t9 are now free
+    # thus $t8 - $t9 are now free
     jal draw_scene
     jal draw_pill
     # Initialize the game
@@ -85,11 +85,12 @@ game_loop:
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
     lw $t8, 0($t0)                  # Load first word from keyboard
     beq $t8, 1, keyboard_input # check if there is key input
+    # jal respond_to_S
     cancel_checker:
     
     li 	$v0, 32
-	li 	$a0, 500
-	syscall # sleep for 0.5 sec
+	li 	$a0, 16
+	syscall # update 60 time 1 sec
     j game_loop
     
     
@@ -211,7 +212,6 @@ draw_rect:
         j row_start     # jump to the start of the line-drawing section
     # else:
         row_end:
-    lw $t0, displayaddress
 jr $ra                      # return to the calling program
 
 #  The line drawing function
@@ -232,11 +232,6 @@ draw_line:
         sw color, 0($t2)              # Draw the pixel at location
         # while current pixel has not reached end
         # Loop until the current pixel has reached the final point in the line
-        #####
-        # addi $t4, $a1, 128
-        # lw $t5, 0(t4)
-        # if $t5 == 0x000000
-        #####
         addi $t2, $t2, 4            # Move the current location to the next pixel
         # if t2 == t3
             beq $t2, $t3, line_end      # Break out of the loop when $t2 == $t3
@@ -250,8 +245,11 @@ jr $ra
 # generate a random pill at t
 # a0 x coord
 # a1 y coord
-# t5 color pill 
 draw_pill:
+    li $s0, 10
+    li $s1, 6
+    li $s2, 10
+    li $s3, 7
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
     sw $ra, 0($sp)
     jal set_random_color
@@ -304,22 +302,6 @@ set_random_color:
         lw $a0, 0($sp)
         addi $sp, $sp, 4 
     jr $ra
-    
-    
-    #a0 x pos
-    #a1 y pos
-    #t0 display address
-
-# do this by erasing current pos and redraw pill at new pos
-# s0 curr x coord part1
-# s1 curr y coord part1
-# s2 curr x coord part2
-# s3 curr y coord part2
-# s4 part1 col
-# s5 part2 col
-move_pill:
-
-
 
 keyboard_input:
     lw $a0, 4($t0) # Load second word from keyboard
@@ -328,19 +310,6 @@ keyboard_input:
     beq $a0, 115, respond_to_S
     beq $a0, 100, respond_to_D
     beq $a0, 0x71, respond_to_Q
-    jr $ra
-
-respond_to_W:
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp) 
-    li $v0, 1
-    syscall
-    addi ,$a0 ,$t6,-1
-    addi , $a1, $t7, -1
-    # beg blah blah donothing
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 
-    donothingW:
     jr $ra
     
 respond_to_A:
@@ -351,54 +320,350 @@ respond_to_A:
     add $a0, x_pill1, $zero
     add $a1, y_pill1, $zero
     jal fetch_color
+    addi $t8, color, 0
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal fetch_color
+    addi $t9, color, 0
     # chech color at initial spot
-    subi x_pill1, x_pill1, 1
-    subi x_pill2, x_pill2, 1
+    
+    # remove color from initial pos
     add $a0, x_pill1, $zero
     add $a1, y_pill1, $zero
-    jal fetch_color
-    lw color, 0($t0)
+    lw color, black
     jal draw_rect
-    # beg blah blah donothing
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal draw_rect
+    #
+    # subtract coordinate from both coordinates
+    subi $s0, x_pill1, 1
+    addi $s1, y_pill1, 0
+    subi $s2, x_pill2, 1
+    addi $s3, y_pill2, 0
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing # if s4 is 1, i.e indicates there is a color on new path
+    beq $s4, 2, over_A # if s4 is 2, i.e do_nothing is done, its over
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
     
+    # 
+    #draw the 2 new pos or less
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    over_A:
     # load stuff
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
     #
-    donothingA:
     jr $ra
     
 respond_to_S:
-    li $v0, 1
-    syscall
+    #
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
+    #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
+    addi $t8, color, 0
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal fetch_color
+    addi $t9, color, 0
+    # fetch color at initial spot
     
-    jr $ra
-    donothingS:
+    # remove color from initial pos
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    lw color, black
+    jal draw_rect
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal draw_rect
+    #
+    
+    # change coordinate from both coordinates store them in temp are check collision
+    addi $s0, x_pill1, 0
+    addi $s1, y_pill1, 1
+    addi $s2, x_pill2, 0
+    addi $s3, y_pill2, 1
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing
+    beq $s4, 2, over_S
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
+    
+    # subtract coordinate from both coordinates
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    #
+    # load stuff
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    #
+
     jr $ra
     
-respond_to_D:
-    li $v0, 1
-    syscall
-    
+    # beg blah blah donothingA
+    over_S:
+    # load stuff
+    jal draw_pill
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    #
+
     jr $ra
-    donothingD:
+    
+respond_to_D: # move both x coord 1 by adding 1
+    #
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
+    #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
+    addi $t8, color, 0
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal fetch_color
+    addi $t9, color, 0
+    # fetch color at initial spot
+    
+    # remove color from initial pos
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    lw color, black
+    jal draw_rect
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal draw_rect
+    #
+    
+    # change coordinate from both coordinates store them in temp are check collision
+    addi $s0, x_pill1, 1
+    addi $s1, y_pill1, 0
+    addi $s2, x_pill2, 1
+    addi $s3, y_pill2, 0
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing
+    beq $s4, 2, over_D
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
+    
+    # 
+    #draw the 2 new pos or less
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    #
+    over_D:
+    # beg blah blah donothingA
+    # load stuff
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    #
     jr $ra
     
 respond_to_Q:
 	li $v0, 10                      # Quit gracefully
 	syscall
+
+respond_to_W:
+    #
+    addi $sp, $sp, -4           # store ra
+    sw $ra, 0($sp) 
+    #
+        #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
+    addi $t8, color, 0
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal fetch_color
+    addi $t9, color, 0
+    # fetch color at initial spot
+    
+    # remove color from initial pos
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    lw color, black
+    jal draw_rect
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal draw_rect
+    #
+    # beg blah blah donothing
+    beq x_pill1, x_pill2, rotate_case_1 # if pill is vertical
+    beq y_pill1, y_pill2, rotate_case_2 # if pill is horizontal
+    #
+    rotation_done:
+    #
+    lw $ra, 0($sp) # load ra
+    addi $sp, $sp, 4 
+    #
+    jr $ra
+
+
+rotate_case_1: # dont change pill 2 coordinate at all, change pill 1 y coorinate to pill2 y and and x to pill 2 x + 1 
+    
+    addi $s0, x_pill2, 1
+    addi $s1, y_pill2, 0
+    addi $s2, x_pill1, 0
+    addi $s3, y_pill2, 0
+    
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing
+    beq $s4, 2 rotation_done
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
+    
+    
+    donothing_rotate_1:
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+
+    j rotation_done
+
+rotate_case_2: # change pill 2 to x pos of pill 1 and y - 1 pill 1, then switch pill1 and pill 2
+    
+    addi $s0, x_pill1, 0
+    addi $s1, y_pill1, 0
+    addi $s2, x_pill1, 0
+    addi $s3, y_pill1, 1
+    
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing
+    beq $s4, 2 rotation_done
+    
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
+    
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    
+    # replace pill1 and pill2
+    addi $s0, x_pill2, 0
+    addi $s1, y_pill2, 0
+    addi x_pill2, x_pill1, 0
+    addi, y_pill2, y_pill1, 0
+    addi, x_pill1, $s0, 0
+    addi, y_pill1, $s1, 0
+    
+    j rotation_done
+    
+    
+do_nothing:
+    #
+    addi $sp, $sp, -4           # store ra
+    sw $ra, 0($sp) 
+    #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    li $s4, 2  # so it dont loop infinitely
+    #
+    lw $ra, 0($sp) # load ra
+    addi $sp, $sp, 4 
+    #
+    jr $ra
+
     
 fetch_color:
-    
     lw $t0, displayaddress      # $t0 = base address for display
     sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
     sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
     add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
     add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
-    sw color, 0($t2)              # fetch color
-    add $a0, color, $zero
-    li $v0, 1
-    syscall
+    lw color, 0($t2)              # fetch color
     jr $ra
+
+
+collision_checker: # check collision by checking if the new position has color or not
+    #
+    addi $sp, $sp, -4           # store ra
+    sw $ra, 0($sp) 
+    #
     
-collision_checker:
+    li $s4, 0 
+    add $a0, $s0, $zero # check coordinate for pill 1 x
+    add $a1, $s1, $zero # check coordinate for pill 1 y
+    jal fetch_color
+bne color, 0x000000, nope # is pill 1 gonna get drawed on another pixel?
+    add $a0, $s2, $zero # check coordinate for pill 2 x
+    add $a1, $s3, $zero # check coordinate for pill 2 y
+    jal fetch_color
+bne color, 0x000000, nope # is pill 1 gonna get drawed on another pixel?
+
+    yep: # if both are black
+        #
+        lw $ra, 0($sp) # load ra
+        addi $sp, $sp, 4 
+        #
+        jr $ra
+    nope: # if at leat
+        #
+        lw $ra, 0($sp) # load ra
+        addi $sp, $sp, 4 
+        #
+        addi $s4, $s4, 1
+        jr $ra
+        
+    
+    
