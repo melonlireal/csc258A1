@@ -14,9 +14,16 @@
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
     .data
-displayaddress:     .word       0x10008000
-capsule_x:          .word       0
-capsule_y:          .word       0
+displayaddress:     .word   0x10008000
+capsule1_x:         .word   0
+capsule1_y:         .word   0
+capsule2_x:         .word   0
+capsule2_y:         .word   0
+red:                .word   0xff0000
+yellow:             .word   0xffff00
+blue:               .word   0x00ffff
+white:              .word   0xffffff
+black:              .word   0x000000
 
 ##############################################################################
 # Immutable Data
@@ -49,17 +56,18 @@ main:
     # white 0xffffff
     # black 0x000000
     lw $t0, displayaddress # $t0 = base address for display
-    li $t1, 0xff0000
-    li $t2, 0xffff00
-    li $t3, 0x00ffff
-    li $t4, 0xffffff
-    li $t5, 0x000000
-    .eqv red $t1
-    .eqv yellow $t2
-    .eqv blue $t3
-    .eqv white $t4
-    .eqv color $t5
-    # thus t6, t7, t8 and t9 are now free
+    li $t1, 0x000000
+    .eqv color $t1
+    li $t4, 0 # x pill 1 
+    li $t5, 0 # y pill 1
+    li $t6, 0 # x pill 2
+    li $t7, 0 # y pill 2
+    .eqv x_pill1 $t4
+    .eqv y_pill1 $t5
+    .eqv x_pill2 $t6
+    .eqv y_pill2 $t7
+    # NEVER TOUCH THESE
+    # thus $t2 - $t9 are now free
     jal draw_scene
     jal draw_pill
     # Initialize the game
@@ -77,8 +85,6 @@ game_loop:
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
     lw $t8, 0($t0)                  # Load first word from keyboard
     beq $t8, 1, keyboard_input # check if there is key input
-    li $v0, 1
-    syscall
     cancel_checker:
     
     li 	$v0, 32
@@ -96,14 +102,14 @@ draw_scene:
         addi $a1, $zero, 8         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
         addi $a2, $zero, 17          # Set the width of the rectangle (in pixels)
         addi $a3, $zero, 24          # Set the height of the rectangle (in pixels)
-        add color, white, $zero
+        lw color, white
             jal draw_rect
             
         addi $a0, $zero, 3 
         addi $a1, $zero, 9    
         addi $a2, $zero, 15    
         addi $a3, $zero, 22         
-        li color 0x000000 # erase the center and lid by drawing it black
+        lw color, black # erase the center and lid by drawing it black
             jal draw_rect
         addi $a0, $zero, 9
         addi $a1, $zero, 8
@@ -115,7 +121,7 @@ draw_scene:
         addi $a1, $zero, 5
         addi $a2, $zero, 1         
         addi $a3, $zero, 3   
-        add color, white, $zero # draw the 2 pointing out in white
+        lw color, white # draw the 2 pointing out in white
             jal draw_rect
         addi $a0, $zero, 12
         addi $a1, $zero, 5
@@ -124,38 +130,39 @@ draw_scene:
             jal draw_rect
         addi $a2, $zero, 1      
         addi $a3, $zero, 1
+        
     draw_virus_art:
         addi $a0, $zero, 1          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
-        add color, red, $zero
+        lw color, red
             jal draw_rect
         addi $a0, $zero, 3          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add color, yellow, $zero
+        lw color, yellow
             jal draw_rect
         addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add color, blue, $zero
+        lw color, blue
             jal draw_rect
+            
     draw_virus:
         addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add color, red, $zero
+        lw color, red
             jal draw_rect
         addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add color, yellow, $zero
+        lw color, yellow
             jal draw_rect
         addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        add color, blue, $zero
+        lw color, blue
             jal draw_rect
         lw $ra, 0($sp)
         addi $sp, $sp, 4 
         jr $ra
     
 #  The rectangle drawing function
-#
 #  $a0 = X coordinate for start of the line
 #  $a1 = Y coordinate for start of the line
 #  $a2 = wdith of the rectangle 
@@ -179,7 +186,6 @@ draw_rect:
         sw $t1, 0($sp)
         addi $sp, $sp, -4
         sw $t2, 0($sp)
-        
         jal draw_line               # call the draw_line function
         
 # restore all the registers that were stored on the stack
@@ -226,6 +232,11 @@ draw_line:
         sw color, 0($t2)              # Draw the pixel at location
         # while current pixel has not reached end
         # Loop until the current pixel has reached the final point in the line
+        #####
+        # addi $t4, $a1, 128
+        # lw $t5, 0(t4)
+        # if $t5 == 0x000000
+        #####
         addi $t2, $t2, 4            # Move the current location to the next pixel
         # if t2 == t3
             beq $t2, $t3, line_end      # Break out of the loop when $t2 == $t3
@@ -248,12 +259,16 @@ draw_pill:
     addi $a1, $zero, 6
     addi $a2, $zero, 1      
     addi $a3, $zero, 1 
+    li x_pill1, 10
+    li y_pill1, 6
     jal draw_rect
     jal set_random_color
     addi $a0, $zero, 10
     addi $a1, $zero, 7
     addi $a2, $zero, 1      
     addi $a3, $zero, 1 
+    li x_pill2 10
+    li y_pill2 7
     jal draw_rect
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
@@ -265,6 +280,7 @@ set_random_color:
     sw $a0, 0($sp)
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
     sw $a1, 0($sp)
+    # store a0 and a1 before replacing them
     li $v0, 42
     li $a0, 0
     li $a1, 3
@@ -272,14 +288,15 @@ set_random_color:
     beq $a0, 0, set_red
     beq $a0, 1, set_yellow
     beq $a0, 2, set_blue
+    # there are 3 color, 0 for red, 1 for yellow and 2 for blue
     set_red:
-        add color, red, $zero
+        lw color, red
         j end
     set_yellow:
-        add color, yellow, $zero
+        lw color, yellow
         j end
     set_blue:
-        add color, blue, $zero
+        lw color, blue
         j end
     end:
         lw $a1, 0($sp)
@@ -289,7 +306,9 @@ set_random_color:
     jr $ra
     
     
-
+    #a0 x pos
+    #a1 y pos
+    #t0 display address
 
 # do this by erasing current pos and redraw pill at new pos
 # s0 curr x coord part1
@@ -318,28 +337,34 @@ respond_to_W:
     syscall
     addi ,$a0 ,$t6,-1
     addi , $a1, $t7, -1
-    lw color, 0($t0)
     # beg blah blah donothing
-    
-    jal draw_line
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
     donothingW:
     jr $ra
     
 respond_to_A:
+    #
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
     sw $ra, 0($sp) 
-    li $v0, 1
-    syscall
-    addi ,$a0 ,$t6,-1
-    addi , $a1, $t7, -1
+    #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
+    # chech color at initial spot
+    subi x_pill1, x_pill1, 1
+    subi x_pill2, x_pill2, 1
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
     lw color, 0($t0)
+    jal draw_rect
     # beg blah blah donothing
     
-    jal draw_line
+    # load stuff
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
+    #
     donothingA:
     jr $ra
     
@@ -362,5 +387,18 @@ respond_to_D:
 respond_to_Q:
 	li $v0, 10                      # Quit gracefully
 	syscall
+    
+fetch_color:
+    
+    lw $t0, displayaddress      # $t0 = base address for display
+    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+    add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+    add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+    sw color, 0($t2)              # fetch color
+    add $a0, color, $zero
+    li $v0, 1
+    syscall
+    jr $ra
     
 collision_checker:
