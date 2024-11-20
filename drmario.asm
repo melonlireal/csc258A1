@@ -106,7 +106,7 @@ draw_scene:
             jal draw_rect
             
         addi $a0, $zero, 3 
-        addi $a1, $zero, 9    
+        addi $a1, $zero, 9
         addi $a2, $zero, 15    
         addi $a3, $zero, 22         
         lw color, black # erase the center and lid by drawing it black
@@ -239,6 +239,138 @@ draw_line:
     line_end:
     # Return to calling program
 jr $ra
+
+
+#  $a0 = X coordinate for start of the scan 
+#  $a1 = Y coordinate for start of the scan
+#  $a2 = wdith of the rectangle to scan
+#  $a3 = height of the rectangle to scan 
+#  $t0 = the current row being scanned
+cancel_checker:
+    add $t0, $zero, $zero
+    #   
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+        sw $t0, 0($sp)              # store $t0 on the stack
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+        sw $a0, 0($sp)              # store $a0 on the stack
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+        sw $a1, 0($sp)              # store $a1 on the stack
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+        sw $a2, 0($sp)              # store $a2 on the stack
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    #
+    jal scan_line
+    #   
+        lw $a2, 0($sp)              # restore $a2 from the stack
+        addi $sp, $sp, 4            # move the stack pointer to the new top element
+        lw $a1, 0($sp)              # restore $a1 from the stack
+        addi $sp, $sp, 4            # move the stack pointer to the new top element
+        lw $a0, 0($sp)              # restore $a0 from the stack
+        addi $sp, $sp, 4            # move the stack pointer to the new top element
+        lw $t0, 0($sp)              # restore $t0 from the stack
+        addi $sp, $sp, 4            # move the stack pointer to the new top 
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+    #
+    
+    
+    #j cancel_checker
+    no_cancel:
+    jr $ra
+
+# $a0 start pos x
+# $a1 start pos y
+scan_line:
+    #
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+    #
+    scan_starts:
+        #
+        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+        sw $a0, 0($sp)              # store $a0 on the 
+        addi $sp, $sp, -4
+        sw $a1, 0($sp)
+        #
+        
+        jal fetch_color
+        
+        #
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4
+        #
+        addi $a0, $a0, 1
+        beq $a0, $a2, scan_complete
+        bne color, 0x000000, check_pixel_after
+            j scan_starts
+    scan_complete:
+        #
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+        #
+        jr $ra
+    
+# $s0 current color
+# $s1 same color in a row
+check_pixel_after:
+#
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $a0, 0($sp)              # store $a0 on the 
+    addi $sp, $sp, -4
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+#   
+    addi $s0, color, 0 # store the current pixel color
+    li $s1, -1
+    
+    keep_going:
+    addi $s1, $s1, 1 
+    addi $a0, $a0, 1
+    jal fetch_color
+    beq $s0, color keep_going
+    bge $s1, 3 erase
+    
+    #
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+    #
+    jr $ra
+    
+    erase:
+    #
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+    #
+    
+    lw color, black
+    addi $a2, $s1, 0
+    jal draw_rect
+    jr $ra
+    
+    
+    
+fetch_color:
+    lw $t0, displayaddress      # $t0 = base address for display
+    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+    add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+    add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+    lw color, 0($t2)              # fetch color
+    jr $ra
+    
+    
+    
 
 
 # generate a random pill at t
@@ -432,6 +564,15 @@ respond_to_S:
     # beg blah blah donothingA
     over_S:
     # load stuff
+    #  $a0 = X coordinate for start of the scan 
+    #  $a1 = Y coordinate for start of the scan
+    #  $a2 = wdith of the rectangle to scan
+    #  $a3 = height of the rectangle to scan 
+    #  $t0 = the current row being scanned
+    li $a0, 3
+    li $a1, 9
+    li $a2, 15
+    li $a3 22
     #jal cancel_checker
     jal draw_pill
     lw $ra, 0($sp)
@@ -557,7 +698,6 @@ rotate_case_1: # dont change pill 2 coordinate at all, change pill 1 y coorinate
     addi y_pill2, $s3, 0
     
     
-    donothing_rotate_1:
     add $a0, x_pill1, $zero
     add $a1, y_pill1, $zero
     addi color, $t8, 0
@@ -622,6 +762,7 @@ do_nothing:
     add $a1, y_pill2, $zero
     add color, $t9, 0
     jal draw_rect
+    # draw the pill back to its initial position
     li $s4, 2  # so it dont loop infinitely
     #
     lw $ra, 0($sp) # load ra
@@ -629,23 +770,8 @@ do_nothing:
     #
     jr $ra
     
-
-cancel_checker:
     
     
-    
-    j cancel_checker
-    no_cancel:
-    jr $ra
-    
-fetch_color:
-    lw $t0, displayaddress      # $t0 = base address for display
-    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
-    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
-    add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
-    add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
-    lw color, 0($t2)              # fetch color
-    jr $ra
 
 collision_checker: # check collision by checking if the new position has color or not
     #
