@@ -55,6 +55,8 @@ main:
     # cyan(better blue) 0x00ffff
     # white 0xffffff
     # black 0x000000
+    # s5 score
+    # s6 timer
     lw $t0, displayaddress # $t0 = base address for display
     li $t1, 0x000000
     .eqv color $t1
@@ -62,10 +64,14 @@ main:
     li $t5, 0 # y pill 1
     li $t6, 0 # x pill 2
     li $t7, 0 # y pill 2
+    li $s5, 30 # gravity counter
+    li $s6, 1 # score counter, actual score = score -1
     .eqv x_pill1 $t4
     .eqv y_pill1 $t5
     .eqv x_pill2 $t6
     .eqv y_pill2 $t7
+    .eqv gravity_counter $s5
+    .eqv score $s6
     # NEVER TOUCH THESE
     # thus $t8 - $t9 are now free
     jal draw_scene
@@ -85,82 +91,25 @@ game_loop:
     lw $t0, ADDR_KBRD               # $t0 = base address for keyboard
     lw $t8, 0($t0)                  # Load first word from keyboard
     beq $t8, 1, keyboard_input # check if there is key input
-    # jal respond_to_S
+    sub gravity_counter,  gravity_counter, score # as score increase, gravity counter dercrease faster, thus the pill falls faster
+    #
     
+    #
+    ble gravity_counter, 0, fall
     li 	$v0, 32
 	li 	$a0, 16
 	syscall # update 60 time 1 sec
     j game_loop
     
-    
-draw_scene:
-    lw $t0 displayaddress
+
+fall:
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp) 
-    draw_bottle:
-        addi $a0, $zero, 2          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 8         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        addi $a2, $zero, 17          # Set the width of the rectangle (in pixels)
-        addi $a3, $zero, 24          # Set the height of the rectangle (in pixels)
-        lw color, white
-            jal draw_rect
-            
-        addi $a0, $zero, 3 
-        addi $a1, $zero, 9
-        addi $a2, $zero, 15    
-        addi $a3, $zero, 22         
-        lw color, black # erase the center and lid by drawing it black
-            jal draw_rect
-        addi $a0, $zero, 9
-        addi $a1, $zero, 8
-        addi $a2, $zero, 3      
-        addi $a3, $zero, 1     
-            jal draw_rect
-            
-        addi $a0, $zero, 8
-        addi $a1, $zero, 5
-        addi $a2, $zero, 1         
-        addi $a3, $zero, 3   
-        lw color, white # draw the 2 pointing out in white
-            jal draw_rect
-        addi $a0, $zero, 12
-        addi $a1, $zero, 5
-        addi $a2, $zero, 1      
-        addi $a3, $zero, 3       
-            jal draw_rect
-        addi $a2, $zero, 1      
-        addi $a3, $zero, 1
-        
-    draw_virus_art:
-        addi $a0, $zero, 1          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
-        lw color, red
-            jal draw_rect
-        addi $a0, $zero, 3          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        lw color, yellow
-            jal draw_rect
-        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        lw color, blue
-            jal draw_rect
-            
-    draw_virus:
-        addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        lw color, red
-            jal draw_rect
-        addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        lw color, yellow
-            jal draw_rect
-        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        lw color, blue
-            jal draw_rect
-        lw $ra, 0($sp)
-        addi $sp, $sp, 4 
-        jr $ra
+    sw $ra, 0($sp)              # store $t0 on the stack
+    li gravity_counter, 30
+    jal respond_to_S
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    jr $ra
     
 #  The rectangle drawing function
 #  $a0 = X coordinate for start of the line
@@ -240,123 +189,15 @@ draw_line:
     # Return to calling program
 jr $ra
 
-
 #  $a0 = X coordinate for start of the scan 
 #  $a1 = Y coordinate for start of the scan
 #  $a2 = wdith of the rectangle to scan
-#  $a3 = height of the rectangle to scan 
+#  $a3 = height of the rectangle to scan + 1
 #  $t0 = the current row being scanned
+#  $t8 = is there cancel indicator
+# area expected to be scanned: (3,9) -> (18, 31)
 cancel_checker:
-    add $t0, $zero, $zero
-    #   
-        addi $sp, $sp, -4
-        sw $ra, 0($sp)
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $t0, 0($sp)              # store $t0 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a0, 0($sp)              # store $a0 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a1, 0($sp)              # store $a1 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a2, 0($sp)              # store $a2 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    #
-    jal scan_line
-    #   
-        lw $a2, 0($sp)              # restore $a2 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $a1, 0($sp)              # restore $a1 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $a0, 0($sp)              # restore $a0 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $t0, 0($sp)              # restore $t0 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top 
-        lw $ra, 0($sp)
-        addi $sp, $sp, 4
-    #
-    
-    
-    #j cancel_checker
-    no_cancel:
-    jr $ra
-
-# $a0 start pos x
-# $a1 start pos y
-scan_line:
-    #
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
-    #
-    scan_starts:
-        #
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a0, 0($sp)              # store $a0 on the 
-        addi $sp, $sp, -4
-        sw $a1, 0($sp)
-        #
-        
-        jal fetch_color
-        
-        #
-        lw $a1, 0($sp)
-        addi $sp, $sp, 4
-        lw $a0, 0($sp)
-        addi $sp, $sp, 4
-        #
-        addi $a0, $a0, 1
-        beq $a0, $a2, scan_complete
-        bne color, 0x000000, check_pixel_after
-            j scan_starts
-    scan_complete:
-        #
-        lw $ra, 0($sp)
-        addi $sp, $sp, 4
-        #
-        jr $ra
-    
-# $s0 current color
-# $s1 same color in a row
-check_pixel_after:
-#
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $a0, 0($sp)              # store $a0 on the 
-    addi $sp, $sp, -4
-    sw $a1, 0($sp)
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
-#   
-    addi $s0, color, 0 # store the current pixel color
-    li $s1, -1
-    
-    keep_going:
-    addi $s1, $s1, 1 
-    addi $a0, $a0, 1
-    jal fetch_color
-    beq $s0, color keep_going
-    bge $s1, 3 erase
-    
-    #
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    lw $a1, 0($sp)
-    addi $sp, $sp, 4
-    lw $a0, 0($sp)
-    addi $sp, $sp, 4
-    #
-    jr $ra
-    
-    erase:
-    #
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4
-    lw $a0, 0($sp)
-    addi $sp, $sp, 4
-    #
-    
-    lw color, black
-    addi $a2, $s1, 0
-    jal draw_rect
-    jr $ra
+jr $ra
     
     
     
@@ -536,8 +377,8 @@ respond_to_S:
     addi $s3, y_pill2, 1
     jal collision_checker
     #
-    beq $s4, 1, do_nothing
-    beq $s4, 2, over_S
+    beq $s4, 1, do_nothing # if collision do nothing
+    beq $s4, 2, over_S # if nothing done end event S
     addi x_pill1, $s0, 0
     addi y_pill1, $s1, 0
     addi x_pill2, $s2, 0
@@ -558,27 +399,25 @@ respond_to_S:
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
     #
-
     jr $ra
     
-    # beg blah blah donothingA
     over_S:
-    # load stuff
-    #  $a0 = X coordinate for start of the scan 
-    #  $a1 = Y coordinate for start of the scan
-    #  $a2 = wdith of the rectangle to scan
-    #  $a3 = height of the rectangle to scan 
-    #  $t0 = the current row being scanned
-    li $a0, 3
-    li $a1, 9
-    li $a2, 15
-    li $a3 22
-    #jal cancel_checker
-    jal draw_pill
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 
-    #
-
+        # load stuff
+        #  $a0 = X coordinate for start of the scan 
+        #  $a1 = Y coordinate for start of the scan
+        #  $a2 = wdith of the rectangle to scan
+        #  $a3 = height of the rectangle to scan 
+        #  $t0 = the current row being scanned
+        li $a0, 3
+        li $a1, 9
+        li $a2, 18
+        li $a3 22
+        jal cancel_checker
+        jal draw_pill
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4 
+#
+    cancel_finished:
     jr $ra
     
 respond_to_D: # move both x coord 1 by adding 1
@@ -804,4 +643,72 @@ bne color, 0x000000, nope # is pill 1 gonna get drawed on another pixel?
         jr $ra
         
     
-    
+draw_scene:
+    lw $t0 displayaddress
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
+    draw_bottle:
+        addi $a0, $zero, 2          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 8         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        addi $a2, $zero, 17          # Set the width of the rectangle (in pixels)
+        addi $a3, $zero, 24          # Set the height of the rectangle (in pixels)
+        lw color, white
+            jal draw_rect
+            
+        addi $a0, $zero, 3 
+        addi $a1, $zero, 9
+        addi $a2, $zero, 15    
+        addi $a3, $zero, 22         
+        lw color, red # erase the center and lid by drawing it black
+            jal draw_rect
+        addi $a0, $zero, 9
+        addi $a1, $zero, 8
+        addi $a2, $zero, 3      
+        addi $a3, $zero, 1     
+        lw color, blue
+            jal draw_rect
+            
+        addi $a0, $zero, 8
+        addi $a1, $zero, 5
+        addi $a2, $zero, 1         
+        addi $a3, $zero, 3   
+        lw color, white # draw the 2 pointing out in white
+            jal draw_rect
+        addi $a0, $zero, 12
+        addi $a1, $zero, 5
+        addi $a2, $zero, 1      
+        addi $a3, $zero, 3       
+            jal draw_rect
+        addi $a2, $zero, 1      
+        addi $a3, $zero, 1
+        
+    draw_virus_art:
+        addi $a0, $zero, 1          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        lw color, red
+            jal draw_rect
+        addi $a0, $zero, 3          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        lw color, yellow
+            jal draw_rect
+        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        lw color, blue
+            jal draw_rect
+            
+    draw_virus:
+        #addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        #addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        #lw color, red
+        #    jal draw_rect
+        #addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        #addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        #lw color, yellow
+        #    jal draw_rect
+        #addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        #addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        #lw color, blue
+        #    #jal draw_rect
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4 
+        jr $ra
