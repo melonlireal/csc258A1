@@ -15,10 +15,9 @@
 ##############################################################################
     .data
 displayaddress:     .word   0x10008000
-capsule1_x:         .word   0
-capsule1_y:         .word   0
-capsule2_x:         .word   0
-capsule2_y:         .word   0
+red_virus_pos:        .word   0
+yellow_virus_pos:     .word   0
+blue_virus_pos:       .word   0
 red:                .word   0xff0000
 yellow:             .word   0xffff00
 blue:               .word   0x00ffff
@@ -55,8 +54,8 @@ main:
     # cyan(better blue) 0x00ffff
     # white 0xffffff
     # black 0x000000
-    # s5 score
-    # s6 timer
+    # s5 timer
+    # s6 score
     lw $t0, displayaddress # $t0 = base address for display
     li $t1, 0x000000
     .eqv color $t1
@@ -222,13 +221,13 @@ cancel_checker:
         addi y, $zero, 9
         addi x_max, $zero, 18    
         addi y_max, $zero, 31  
-jal scan_by_row
+jal scan_by_row # scan the playabe area via row
 
         addi x, $zero, 3 
         addi y, $zero, 9
         addi x_max, $zero, 18    
-        addi y_max, $zero, 31
-jal scan_by_col
+        addi y_max, $zero, 31 
+jal scan_by_col # scan the playable area via colum
 #
         lw $ra, 0($sp)            
         addi $sp, $sp, 4        
@@ -355,6 +354,7 @@ erase_row:
     addi $sp, $sp, -4
     sw $ra, 0($sp) 
 #   
+    jal check_virus_row
     add x_max, $t8, $zero
     li $a3, 1
     lw color, black
@@ -369,6 +369,201 @@ erase_row:
 #
     
 jr $ra
+
+check_virus_row:
+#
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+    addi $sp, $sp, -4
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4
+    sw $t2, 0($sp)
+    addi $sp, $sp, -4
+    sw $t3, 0($sp)
+    addi $sp, $sp, -4
+    sw $t4, 0($sp)
+#
+        loop_erased_row:
+
+        lw $t0, displayaddress      # $t0 = base address for display
+        sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+        sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+        add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+        add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+        
+        lw $t4 red_virus_pos
+        beq $t2, $t4, red_row_done
+        lw $t4 yellow_virus_pos
+        beq $t2 $t4, yellow_row_done
+        lw $t4 blue_virus_pos
+        beq $t2 $t4, blue_row_done
+        
+        srl $a0, $a0, 2
+        srl $a1, $a1, 7
+        
+        addi $a0, $a0, 1
+        beq $a0, $a2 virus_compare_complete_row
+        j loop_erased_row
+    virus_compare_complete_row:
+#   
+    lw $t4, 0($sp)
+    addi $sp, $sp, 4
+    lw $t3, 0($sp)
+    addi $sp, $sp, 4
+    lw $t2, 0($sp)
+    addi $sp, $sp, 4
+    lw $a1, 0($sp) 
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+#
+jr $ra
+
+red_row_done:
+    jal red_virus_done
+    j virus_compare_complete_row
+    
+yellow_row_done:
+    jal yellow_virus_done
+    j virus_compare_complete_row
+    
+blue_row_done:
+    jal blue_virus_done
+    j virus_compare_complete_row
+    
+red_virus_done:
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+        addi $sp, $sp, -4  
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4     
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a2, 0($sp)     
+        addi $sp, $sp, -4
+        sw $a3, 0($sp) 
+#
+        addi $a0, $zero, 21         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+        lw color, black
+            jal draw_rect
+        addi $a0, $zero, 22         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+        addi $a0, $zero, 20         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+#
+        lw $a3, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)
+        addi $sp, $sp, 4
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+        jr $ra
+
+yellow_virus_done:
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+        addi $sp, $sp, -4  
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4     
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a2, 0($sp)     
+        addi $sp, $sp, -4
+        sw $a3, 0($sp) 
+#
+        addi $a0, $zero, 25         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+        lw color, black
+            jal draw_rect
+        addi $a0, $zero, 24         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+        addi $a0, $zero, 26         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+#
+        lw $a3, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)
+        addi $sp, $sp, 4
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+        jr $ra
+
+blue_virus_done:
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+        addi $sp, $sp, -4  
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4     
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a2, 0($sp)     
+        addi $sp, $sp, -4
+        sw $a3, 0($sp) 
+#
+        addi $a0, $zero, 29         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+        lw color, black
+            jal draw_rect
+        addi $a0, $zero, 28         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+        addi $a0, $zero, 30         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+#
+        lw $a3, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)
+        addi $sp, $sp, 4
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+        jr $ra
+
 
 scan_by_col:
 #
@@ -834,6 +1029,10 @@ do_nothing:
     #
     jr $ra
     
+    
+    
+    # $s0, temo x pos
+    # $s1, temp y pos
 collision_checker: # check collision by checking if the new position has color or not
     #
     addi $sp, $sp, -4           # store ra
@@ -864,6 +1063,42 @@ bne color, 0x000000, nope # is pill 1 gonna get drawed on another pixel?
         addi $s4, $s4, 1
         jr $ra
         
+        
+# $a0, x coord
+# $a1, y coord
+point_has_color:
+    #
+    addi $sp, $sp, -4           # store ra
+    sw $ra, 0($sp) 
+    addi $sp, $sp, -4
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4
+    sw $a1, 0($sp)
+    #
+jal fetch_color
+bne color, 0x000000, pixel_exists
+        #
+        lw $a1, 0($sp) # load ra
+        addi $sp, $sp, 4 
+        lw $a0, 0($sp)
+        addi $sp, $sp 4
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+        #
+        jr $ra
+    pixel_exists:
+        addi $s4, $s4, 1
+        #
+        lw $a1, 0($sp) # load ra
+        addi $sp, $sp, 4 
+        lw $a0, 0($sp)
+        addi $sp, $sp 4
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+        #
+        jr $ra
+
+
 # generate a random pill at t
 # a0 x coord
 # a1 y coord
@@ -899,7 +1134,6 @@ draw_pill:
     addi $sp, $sp, 4 
     jr $ra
     
-    
 set_random_color:
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
     sw $a0, 0($sp)
@@ -929,9 +1163,31 @@ set_random_color:
         lw $a0, 0($sp)
         addi $sp, $sp, 4 
     jr $ra
+
+set_random_location:
+#
+    addi $sp, $sp, -4       
+    sw $a2, 0($sp)
+#
+    li $v0, 42
+    li $a0, 0
+    li $a1, 15
+    syscall
+    addi $a2, $a0, 0
+    li $a0, 0
+    li $a1, 5
+    syscall
+    addi $a1, $a0, 25
+    addi $a0, $a2, 3
+#
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4
+#
+    jr $ra
     
 draw_scene:
     lw $t0 displayaddress
+    
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
     sw $ra, 0($sp) 
     draw_bottle:
@@ -970,32 +1226,91 @@ draw_scene:
         addi $a3, $zero, 1
         
     draw_virus_art:
-        addi $a0, $zero, 1          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        addi $a0, $zero, 21         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
         lw color, red
             jal draw_rect
-        addi $a0, $zero, 3          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        addi $a0, $zero, 22         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+            jal draw_rect
+        addi $a0, $zero, 20         # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  4
+            jal draw_rect
+            # draw art of red virus
+        addi $a0, $zero, 25          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
         lw color, yellow
             jal draw_rect
-        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 2         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        addi $a0, $zero, 24          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+            jal draw_rect
+        addi $a0, $zero, 26          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+            jal draw_rect   
+            # draw are of yellow virus
+        addi $a0, $zero, 29          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
         lw color, blue
+            jal draw_rect
+        addi $a0, $zero, 28          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+            jal draw_rect
+        addi $a0, $zero, 30          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
             jal draw_rect
             
     draw_virus:
-        addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        do_red_again:
+        li $s4, 0
+        jal set_random_location
+        jal point_has_color
+        bne $s4, 0, do_red_again
         lw color, red
+        lw $t0, displayaddress      # $t0 = base address for display
+        sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+        sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+        add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+        add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+        sw $t2, red_virus_pos
+        srl $a0, $a0, 2
+        srl $a1, $a1, 7
             jal draw_rect
-        addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        do_yellow_again:
+        li $s4, 0
+        jal set_random_location
+        jal point_has_color
+        bne $s4, 0, do_yellow_again # check if random location already has color
+        
         lw color, yellow
+        lw $t0, displayaddress      # $t0 = base address for display
+        sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+        sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+        add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+        add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+        sw $t2, yellow_virus_pos
+        srl $a0, $a0, 2
+        srl $a1, $a1, 7
             jal draw_rect
-        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+            
+        do_blue_again:
+        li $s4, 0
+        jal set_random_location
+        jal point_has_color
+        bne $s4, 0, do_blue_again # check if random location already has color
+        
         lw color, blue
+        lw $t0, displayaddress      # $t0 = base address for display
+        sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+        sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+        add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+        add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+        sw $t2, blue_virus_pos
+        srl $a0, $a0, 2
+        srl $a1, $a1, 7
             jal draw_rect
+            
+#
         lw $ra, 0($sp)
-        addi $sp, $sp, 4 
+        addi $sp, $sp, 4
+#
         jr $ra
