@@ -121,16 +121,16 @@ draw_rect:
     add $t0, $zero, $zero       # create a loop variable with an iniital value of 0
     row_start:
         # Use the stack to store all registers that will be overwritten by draw_line
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $t0, 0($sp)              # store $t0 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a0, 0($sp)              # store $a0 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a1, 0($sp)              # store $a1 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $a2, 0($sp)              # store $a2 on the stack
-        addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-        sw $ra, 0($sp)              # store $ra on the stack
+        addi $sp, $sp, -4       
+        sw $t0, 0($sp)            
+        addi $sp, $sp, -4      
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4     
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a2, 0($sp)           
+        addi $sp, $sp, -4        
+        sw $ra, 0($sp)          
         addi $sp, $sp, -4
         sw $t1, 0($sp)
         addi $sp, $sp, -4
@@ -142,16 +142,16 @@ draw_rect:
         addi $sp, $sp, 4 
         lw $t1, 0($sp)
         addi $sp, $sp, 4 
-        lw $ra, 0($sp)              # restore $ra from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $a2, 0($sp)              # restore $a2 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $a1, 0($sp)              # restore $a1 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $a0, 0($sp)              # restore $a0 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
-        lw $t0, 0($sp)              # restore $t0 from the stack
-        addi $sp, $sp, 4            # move the stack pointer to the new top element
+        lw $ra, 0($sp)             
+        addi $sp, $sp, 4         
+        lw $a2, 0($sp)          
+        addi $sp, $sp, 4         
+        lw $a1, 0($sp)         
+        addi $sp, $sp, 4         
+        lw $a0, 0($sp)            
+        addi $sp, $sp, 4            
+        lw $t0, 0($sp)           
+        addi $sp, $sp, 4         
 
     addi $a1, $a1, 1            # move to the next row to draw
     addi $t0, $t0, 1            # increment the row variable by 1
@@ -189,18 +189,192 @@ draw_line:
     # Return to calling program
 jr $ra
 
+
+
+
 #  $a0 = X coordinate for start of the scan 
 #  $a1 = Y coordinate for start of the scan
 #  $a2 = wdith of the rectangle to scan
-#  $a3 = height of the rectangle to scan + 1
+#  $a3 = height of the rectangle to scan
 #  $t0 = the current row being scanned
-#  $t8 = is there cancel indicator
-# area expected to be scanned: (3,9) -> (18, 31)
+#  $t8 = is there cancel indicator, i.e number of same colors in row col
+# area expected to be scanned: (3,9) -> (17, 30), i.e 18, 32 in scan
 cancel_checker:
+#
+        addi $sp, $sp, -4
+        sw $t0, 0($sp)
+        addi $sp, $sp, -4      
+        sw $a0, 0($sp)          
+        addi $sp, $sp, -4        
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4        
+        sw $a2, 0($sp)          
+        addi $sp, $sp, -4       
+        sw $a3, 0($sp)           
+        addi $sp, $sp, -4          
+        sw $ra, 0($sp)           
+#
+        addi $a0, $zero, 3 
+        addi $a1, $zero, 9
+        addi $a2, $zero, 18    
+        addi $a3, $zero, 31  
+jal scan_by_row
+    
+jal scan_by_col
+#
+        lw $ra, 0($sp)            
+        addi $sp, $sp, 4        
+        lw $a3, 0($sp)           
+        addi $sp, $sp, 4        
+        lw $a2, 0($sp)          
+        addi $sp, $sp, 4        
+        lw $a1, 0($sp)           
+        addi $sp, $sp, 4      
+        lw $a0, 0($sp)           
+        addi $sp, $sp, 4         
+        lw $t0, 0($sp)
+        addi $sp, $sp, 4
+#
 jr $ra
+        
+scan_by_row:
+#
+        addi $sp, $sp, -4
+        sw $t0, 0($sp)
+        addi $sp, $sp, -4       
+        sw $a0, 0($sp)           
+        addi $sp, $sp, -4        
+        sw $a1, 0($sp)           
+        addi $sp, $sp, -4       
+        sw $a2, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a3, 0($sp)            
+        addi $sp, $sp, -4          
+        sw $ra, 0($sp)           
+#       
+        jal scan_row_line
+#
+        lw $ra, 0($sp)           
+        addi $sp, $sp, 4          
+        lw $a3, 0($sp)              
+        addi $sp, $sp, 4         
+        lw $a2, 0($sp)            
+        addi $sp, $sp, 4        
+        lw $a1, 0($sp)      
+        addi $sp, $sp, 4          
+        lw $a0, 0($sp)       
+        addi $sp, $sp, 4        
+        lw $t0, 0($sp)
+        addi $sp, $sp, 4
+#
+        addi $a1, $a1, 1
+        beq  $a1, $a3, all_row_scanned
+        j scan_by_row
+        
+all_row_scanned:
+jr $ra
+
+scan_row_line: # add x + 1 each time, when x meet width, change row
+#
+        addi $sp, $sp, -4
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4       
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4
+        sw $ra, 0($sp) 
+#
+jal fetch_color
+#       
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+        lw $a1, 0($sp)             
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4            
+#
+bne color, 0x000000 row_find_color # if color is not black, go check if the pixel after it is still the same color 
+row_find_complete:
+addi $a0, $a0, 1
+beq $a0, $a2, row_line_scanned 
+j scan_row_line
+    row_line_scanned:
+        jr $ra
+
+row_find_color:
+#
+    addi $sp, $sp, -4 # save initial pos
+    sw $a0, 0($sp)              
+    addi $sp, $sp, -4           
+    sw $a1, 0($sp)              
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+#
+    addi $t9, color, 0
+    li $t8, 0
+    same_color_row_count: # count how many pixel after this pixel has same color
+    addi $t8, $t8, 1
+    addi $a0, $a0, 1
+    #
+        addi $sp, $sp, -4 # save the changed a0 and a1
+        sw $a0, 0($sp)   
+        addi $sp, $sp, -4
+        sw $a1, 0($sp)
+    #
+    jal fetch_color
+    #
+        lw $a1, 0($sp)          # load the changed a0 and a1
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4 
+    #
+    beq color, $t9, same_color_row_count
+#       
+        lw $ra, 0($sp)
+        addi $sp, $sp 4
+        lw $a1, 0($sp)             # load initial pos
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4            
+#
+    bge $t8, 4, erase_row
+    j row_find_complete
+    erase_row:
+#   
+    addi $sp, $sp, -4
+    sw $a2, 0($sp)              
+    addi $sp, $sp, -4           
+    sw $a3, 0($sp)              
+    addi $sp, $sp, -4
+    sw $ra, 0($sp) 
+#   
+    add $a2, $t8, $zero
+    li $a3, 1
+    lw color, black
+    jal draw_rect
+#
+    lw $ra, 0($sp) # load initial pos
+    addi $sp, $sp, 4
+    lw $a3, 0($sp)             
+    addi $sp, $sp, 4            
+    lw $a2, 0($sp)              
+    addi $sp, $sp, 4  
+#
     
     
     
+        
+jr $ra
+
+
+
+scan_by_col:
+jr $ra
+
+scan_col_line:
+    
+    
+# $a0 x coord
+# $a1, y coord
 fetch_color:
     lw $t0, displayaddress      # $t0 = base address for display
     sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
@@ -211,75 +385,6 @@ fetch_color:
     jr $ra
     
     
-    
-
-
-# generate a random pill at t
-# a0 x coord
-# a1 y coord
-draw_pill:
-#
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp)
-#
-
-    li $s0, 10
-    li $s1, 6
-    li $s2, 10
-    li $s3, 7
-    jal collision_checker
-    beq $s4, 1 respond_to_Q
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 6
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
-    li x_pill1, 10
-    li y_pill1, 6
-    jal draw_rect
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 7
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
-    li x_pill2 10
-    li y_pill2 7
-    jal draw_rect
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 
-    jr $ra
-    
-    
-set_random_color:
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $a0, 0($sp)
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $a1, 0($sp)
-    # store a0 and a1 before replacing them
-    li $v0, 42
-    li $a0, 0
-    li $a1, 3
-    syscall
-    beq $a0, 0, set_red
-    beq $a0, 1, set_yellow
-    beq $a0, 2, set_blue
-    # there are 3 color, 0 for red, 1 for yellow and 2 for blue
-    set_red:
-        lw color, red
-        j end
-    set_yellow:
-        lw color, yellow
-        j end
-    set_blue:
-        lw color, blue
-        j end
-    end:
-        lw $a1, 0($sp)
-        addi $sp, $sp, 4 
-        lw $a0, 0($sp)
-        addi $sp, $sp, 4 
-    jr $ra
-
 keyboard_input:
     lw $a0, 4($t0) # Load second word from keyboard
     beq $a0, 119, respond_to_W
@@ -288,63 +393,7 @@ keyboard_input:
     beq $a0, 100, respond_to_D
     beq $a0, 0x71, respond_to_Q
     jr $ra
-    
-respond_to_A:
-    #
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp) 
-    #
-    add $a0, x_pill1, $zero
-    add $a1, y_pill1, $zero
-    jal fetch_color
-    addi $t8, color, 0
-    add $a0, x_pill2, $zero
-    add $a1, y_pill2, $zero
-    jal fetch_color
-    addi $t9, color, 0
-    # chech color at initial spot
-    
-    # remove color from initial pos
-    add $a0, x_pill1, $zero
-    add $a1, y_pill1, $zero
-    lw color, black
-    jal draw_rect
-    add $a0, x_pill2, $zero
-    add $a1, y_pill2, $zero
-    jal draw_rect
-    #
-    # subtract coordinate from both coordinates
-    subi $s0, x_pill1, 1
-    addi $s1, y_pill1, 0
-    subi $s2, x_pill2, 1
-    addi $s3, y_pill2, 0
-    jal collision_checker
-    #
-    beq $s4, 1, do_nothing # if s4 is 1, i.e indicates there is a color on new path
-    beq $s4, 2, over_A # if s4 is 2, i.e do_nothing is done, its over
-    addi x_pill1, $s0, 0
-    addi y_pill1, $s1, 0
-    addi x_pill2, $s2, 0
-    addi y_pill2, $s3, 0
-    
-    # 
-    #draw the 2 new pos or less
-    add $a0, x_pill1, $zero
-    add $a1, y_pill1, $zero
-    addi color, $t8, 0
-    jal draw_rect
-    
-    add $a0, x_pill2, $zero
-    add $a1, y_pill2, $zero
-    add color, $t9, 0
-    jal draw_rect
-    over_A:
-    # load stuff
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 
-    #
-    jr $ra
-    
+
 respond_to_S:
     #
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
@@ -408,10 +457,6 @@ respond_to_S:
         #  $a2 = wdith of the rectangle to scan
         #  $a3 = height of the rectangle to scan 
         #  $t0 = the current row being scanned
-        li $a0, 3
-        li $a1, 9
-        li $a2, 18
-        li $a3 22
         jal cancel_checker
         jal draw_pill
         lw $ra, 0($sp)
@@ -419,6 +464,63 @@ respond_to_S:
 #
     cancel_finished:
     jr $ra
+    
+respond_to_A:
+    #
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp) 
+    #
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    jal fetch_color
+    addi $t8, color, 0
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal fetch_color
+    addi $t9, color, 0
+    # chech color at initial spot
+    
+    # remove color from initial pos
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    lw color, black
+    jal draw_rect
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    jal draw_rect
+    #
+    # subtract coordinate from both coordinates
+    subi $s0, x_pill1, 1
+    addi $s1, y_pill1, 0
+    subi $s2, x_pill2, 1
+    addi $s3, y_pill2, 0
+    jal collision_checker
+    #
+    beq $s4, 1, do_nothing # if s4 is 1, i.e indicates there is a color on new path
+    beq $s4, 2, over_A # if s4 is 2, i.e do_nothing is done, its over
+    addi x_pill1, $s0, 0
+    addi y_pill1, $s1, 0
+    addi x_pill2, $s2, 0
+    addi y_pill2, $s3, 0
+    
+    # 
+    #draw the 2 new pos or less
+    add $a0, x_pill1, $zero
+    add $a1, y_pill1, $zero
+    addi color, $t8, 0
+    jal draw_rect
+    
+    add $a0, x_pill2, $zero
+    add $a1, y_pill2, $zero
+    add color, $t9, 0
+    jal draw_rect
+    over_A:
+    # load stuff
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    #
+    jr $ra
+
     
 respond_to_D: # move both x coord 1 by adding 1
     #
@@ -609,9 +711,6 @@ do_nothing:
     #
     jr $ra
     
-    
-    
-
 collision_checker: # check collision by checking if the new position has color or not
     #
     addi $sp, $sp, -4           # store ra
@@ -642,6 +741,71 @@ bne color, 0x000000, nope # is pill 1 gonna get drawed on another pixel?
         addi $s4, $s4, 1
         jr $ra
         
+# generate a random pill at t
+# a0 x coord
+# a1 y coord
+draw_pill:
+#
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp)
+#
+
+    li $s0, 10
+    li $s1, 6
+    li $s2, 10
+    li $s3, 7
+    jal collision_checker
+    beq $s4, 1 respond_to_Q
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 6
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    li x_pill1, 10
+    li y_pill1, 6
+    jal draw_rect
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 7
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    li x_pill2 10
+    li y_pill2 7
+    jal draw_rect
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+    jr $ra
+    
+    
+set_random_color:
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $a1, 0($sp)
+    # store a0 and a1 before replacing them
+    li $v0, 42
+    li $a0, 0
+    li $a1, 3
+    syscall
+    beq $a0, 0, set_red
+    beq $a0, 1, set_yellow
+    beq $a0, 2, set_blue
+    # there are 3 color, 0 for red, 1 for yellow and 2 for blue
+    set_red:
+        lw color, red
+        j end
+    set_yellow:
+        lw color, yellow
+        j end
+    set_blue:
+        lw color, blue
+        j end
+    end:
+        lw $a1, 0($sp)
+        addi $sp, $sp, 4 
+        lw $a0, 0($sp)
+        addi $sp, $sp, 4 
+    jr $ra
     
 draw_scene:
     lw $t0 displayaddress
@@ -659,13 +823,13 @@ draw_scene:
         addi $a1, $zero, 9
         addi $a2, $zero, 15    
         addi $a3, $zero, 22         
-        lw color, red # erase the center and lid by drawing it black
+        # this is the coordinate for the playable area
+        lw color, black # erase the center and lid by drawing it black
             jal draw_rect
         addi $a0, $zero, 9
         addi $a1, $zero, 8
         addi $a2, $zero, 3      
         addi $a3, $zero, 1     
-        lw color, blue
             jal draw_rect
             
         addi $a0, $zero, 8
