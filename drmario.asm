@@ -72,6 +72,10 @@ main:
     .eqv y_pill2 $t7
     .eqv gravity_counter $s5
     .eqv score $s6
+    .eqv x $a0
+    .eqv y $a1
+    .eqv x_max $a2
+    .eqv y_max $a3
     # NEVER TOUCH THESE
     # thus $t8 - $t9 are now free
     jal draw_scene
@@ -214,12 +218,16 @@ cancel_checker:
         addi $sp, $sp, -4          
         sw $ra, 0($sp)           
 #
-        addi $a0, $zero, 3 
-        addi $a1, $zero, 9
-        addi $a2, $zero, 18    
-        addi $a3, $zero, 31  
+        addi x, $zero, 3 
+        addi y, $zero, 9
+        addi x_max, $zero, 18    
+        addi y_max, $zero, 31  
 jal scan_by_row
-    
+
+        addi x, $zero, 3 
+        addi y, $zero, 9
+        addi x_max, $zero, 18    
+        addi y_max, $zero, 31
 jal scan_by_col
 #
         lw $ra, 0($sp)            
@@ -267,12 +275,11 @@ scan_by_row:
         lw $t0, 0($sp)
         addi $sp, $sp, 4
 #
-        addi $a1, $a1, 1
-        beq  $a1, $a3, all_row_scanned
+        addi y, y, 1
+        beq  y, y_max, all_row_scanned
         j scan_by_row
-        
-all_row_scanned:
-jr $ra
+    all_row_scanned:
+        jr $ra
 
 scan_row_line: # add x + 1 each time, when x meet width, change row
 #
@@ -283,7 +290,7 @@ scan_row_line: # add x + 1 each time, when x meet width, change row
         addi $sp, $sp, -4
         sw $ra, 0($sp) 
 #
-jal fetch_color
+    jal fetch_color
 #       
         lw $ra, 0($sp)
         addi $sp, $sp, 4
@@ -294,8 +301,8 @@ jal fetch_color
 #
 bne color, 0x000000 row_find_color # if color is not black, go check if the pixel after it is still the same color 
 row_find_complete:
-addi $a0, $a0, 1
-beq $a0, $a2, row_line_scanned 
+addi x, x, 1
+beq x, x_max, row_line_scanned 
 j scan_row_line
     row_line_scanned:
         jr $ra
@@ -313,7 +320,7 @@ row_find_color:
     li $t8, 0
     same_color_row_count: # count how many pixel after this pixel has same color
     addi $t8, $t8, 1
-    addi $a0, $a0, 1
+    addi x, x, 1
     #
         addi $sp, $sp, -4 # save the changed a0 and a1
         sw $a0, 0($sp)   
@@ -338,7 +345,8 @@ row_find_color:
 #
     bge $t8, 4, erase_row
     j row_find_complete
-    erase_row:
+    
+erase_row:
 #   
     addi $sp, $sp, -4
     sw $a2, 0($sp)              
@@ -347,7 +355,7 @@ row_find_color:
     addi $sp, $sp, -4
     sw $ra, 0($sp) 
 #   
-    add $a2, $t8, $zero
+    add x_max, $t8, $zero
     li $a3, 1
     lw color, black
     jal draw_rect
@@ -360,19 +368,134 @@ row_find_color:
     addi $sp, $sp, 4  
 #
     
-    
-    
-        
 jr $ra
-
-
 
 scan_by_col:
-jr $ra
+#
+        addi $sp, $sp, -4
+        sw $t0, 0($sp)
+        addi $sp, $sp, -4       
+        sw $a0, 0($sp)           
+        addi $sp, $sp, -4        
+        sw $a1, 0($sp)           
+        addi $sp, $sp, -4       
+        sw $a2, 0($sp)            
+        addi $sp, $sp, -4         
+        sw $a3, 0($sp)            
+        addi $sp, $sp, -4          
+        sw $ra, 0($sp)           
+#       
+        jal scan_col_line
+#
+        lw $ra, 0($sp)           
+        addi $sp, $sp, 4          
+        lw $a3, 0($sp)              
+        addi $sp, $sp, 4         
+        lw $a2, 0($sp)            
+        addi $sp, $sp, 4        
+        lw $a1, 0($sp)      
+        addi $sp, $sp, 4          
+        lw $a0, 0($sp)       
+        addi $sp, $sp, 4        
+        lw $t0, 0($sp)
+        addi $sp, $sp, 4
+#
+        addi x, x, 1
+        beq  x, x_max, all_col_scanned
+        j scan_by_col
+    all_col_scanned:
+        jr $ra
+
 
 scan_col_line:
+#
+        addi $sp, $sp, -4
+        sw $a0, 0($sp)            
+        addi $sp, $sp, -4       
+        sw $a1, 0($sp)            
+        addi $sp, $sp, -4
+        sw $ra, 0($sp) 
+#
+    jal fetch_color
+#       
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+        lw $a1, 0($sp)             
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4            
+#
+bne color, 0x000000 col_find_color # if color is not black, go check if the pixel after it is still the same color 
+col_find_complete:
+addi y, y, 1
+beq y, y_max, col_line_scanned 
+j scan_col_line
+    col_line_scanned:
+        jr $ra
     
+col_find_color:
+#
+    addi $sp, $sp, -4 # save initial pos
+    sw $a0, 0($sp)              
+    addi $sp, $sp, -4           
+    sw $a1, 0($sp)              
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+#
+    addi $t9, color, 0
+    li $t8, 0
+    same_color_col_count: # count how many pixel after this pixel has same color
+    addi $t8, $t8, 1
+    addi y, y, 1
+    #
+        addi $sp, $sp, -4 # save the changed a0 and a1
+        sw $a0, 0($sp)   
+        addi $sp, $sp, -4
+        sw $a1, 0($sp)
+    #
+    jal fetch_color
+    #
+        lw $a1, 0($sp)          # load the changed a0 and a1
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4 
+    #
+    beq color, $t9, same_color_col_count
+#       
+        lw $ra, 0($sp)
+        addi $sp, $sp 4
+        lw $a1, 0($sp)             # load initial pos
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)              
+        addi $sp, $sp, 4            
+#
+    bge $t8, 4, erase_col
+    j col_find_complete
     
+erase_col:
+#   
+    addi $sp, $sp, -4
+    sw $a2, 0($sp)              
+    addi $sp, $sp, -4           
+    sw $a3, 0($sp)              
+    addi $sp, $sp, -4
+    sw $ra, 0($sp) 
+#   
+    add y_max, $t8, $zero
+    li x_max, 1
+    lw color, black
+    jal draw_rect
+#
+    lw $ra, 0($sp) # load initial pos
+    addi $sp, $sp, 4
+    lw $a3, 0($sp)             
+    addi $sp, $sp, 4            
+    lw $a2, 0($sp)              
+    addi $sp, $sp, 4  
+#
+    
+jr $ra
+
 # $a0 x coord
 # $a1, y coord
 fetch_color:
