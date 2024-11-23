@@ -984,18 +984,18 @@ draw_scene:
             jal draw_rect
             
     draw_virus:
-        #addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        #addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        #lw color, red
-        #    jal draw_rect
-        #addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        #addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        #lw color, yellow
-        #    jal draw_rect
-        #addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
-        #addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
-        #lw color, blue
-        #    #jal draw_rect
+        addi $a0, $zero, 10          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 25         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        lw color, red
+            jal draw_rect
+        addi $a0, $zero, 8          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 20         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        lw color, yellow
+            jal draw_rect
+        addi $a0, $zero, 5          # Set the X coordinate for the top left corner of the rectangle (in pixels)
+        addi $a1, $zero, 22         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
+        lw color, blue
+            jal draw_rect
         lw $ra, 0($sp)
         addi $sp, $sp, 4 
         jr $ra
