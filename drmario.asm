@@ -23,7 +23,15 @@ yellow:             .word   0xffff00
 blue:               .word   0x00ffff
 white:              .word   0xffffff
 black:              .word   0x000000
-pillList:           .space 400 # store all pill pos if necessary
+grey:               .word   0x808080
+rose:               .word   0xffc5cb
+pill1_list:         .space  400 # store all pill pos if necessary
+pill2_list:         .space  400 # store all pill pos if necessary
+pill_grid1:         .word 16
+pill_grid2:         .word 18
+pill_grid3:         .word 20
+pill_grid4:         .word 22
+
 
 ##############################################################################
 # Immutable Data
@@ -79,6 +87,7 @@ main:
     # NEVER TOUCH THESE
     # thus $t8 - $t9 are now free
     jal draw_scene
+    jal pill_shift
     jal draw_pill
     # Initialize the game
     
@@ -196,47 +205,317 @@ jr $ra
 
 # iterate across pill panel, if position is black get pill from next position and loop back
 pill_shift:
+#
+    addi $sp, $sp, -4  
+    sw $ra, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a2, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a3, 0($sp)
+#
+# pill grid 1 get from pill grid 2, pill grid 2 get from 3, 3 get from 4, if 4 is black then re iterate again
+start_shift:
+shift_gird1:
+lw $a0, pill_grid1
+li $a1 , 4
+jal fetch_color
+bne color, 0x000000, shift_grid2 # if grid 1 has pill go next
+lw $a0, pill_grid1
+li $a1 , 4
+jal get_pill_up
+jal get_pill_down
+
+shift_grid2:
+lw $a0, pill_grid2
+li $a1 , 4
+jal fetch_color
+bne color, 0x000000, shift_grid3 # if grid 2 has pill go next
+lw $a0, pill_grid2
+li $a1 , 4
+jal get_pill_up
+jal get_pill_down
+
+shift_grid3:
+lw $a0, pill_grid3
+li $a1 , 4
+jal fetch_color
+bne color, 0x000000, paint_grid4 # if grid 3 has pill go next
+lw $a0, pill_grid3
+li $a1 , 4
+jal get_pill_up
+jal get_pill_down
+
+paint_grid4:
+lw $a0, pill_grid4
+li $a1 , 4
+jal fetch_color
+bne color, 0x000000, shift_end
+lw $a0, pill_grid4
+li $a1 , 4
+jal gird4_draw_pill
+j start_shift # jump if a pill is needed to be drawn on the last slot
+shift_end:
+#
+    lw $a3, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4 
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+# 
+jr $ra
+
+# $a0 x coord
+# $a1, y coord
+fetch_color:
+    lw $t0, displayaddress      # $t0 = base address for display
+    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
+    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
+    add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
+    add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
+    lw color, 0($t2)              # fetch color
+    jr $ra
+    
+# $a0 current pos
+# a0 + 2 is the next grid
+get_pill_up:
+#
+    addi $sp, $sp, -4  
+    sw $ra, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a2, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a3, 0($sp)
+#
+li $a1, 4
+li $a2, 1
+li $a3, 1
+
+#
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+#
+addi $a0, $a0, 2
+jal fetch_color
+#
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+#
+jal draw_rect
+
+li $a1, 4
+li $a2, 1
+li $a3, 1
+#
+    addi $sp, $sp, -4 
+    sw $a0, 0($sp) 
+#
+addi $a0, $a0, 2
+lw color, black
+jal draw_rect
+#
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+#
+
+#
+    lw $a3, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4 
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+#
+jr $ra
+
+get_pill_down:
+#
+    addi $sp, $sp, -4  
+    sw $ra, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a2, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a3, 0($sp)
+#
+li $a1, 5
+li $a2, 1
+li $a3, 1
+#
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+#
+addi $a0, $a0, 2
+jal fetch_color
+#
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+#
+jal draw_rect
+li $a1, 5
+li $a2, 1
+li $a3, 1
+#
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+#
+addi $a0, $a0, 2
+lw color, black
+jal draw_rect
+#
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4
+#
+
+#
+    lw $a3, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4 
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+#
+jr $ra
+
+
+gird4_draw_pill:
+#
+    addi $sp, $sp, -4  
+    sw $ra, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a2, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a3, 0($sp)
+#
+
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    jal set_random_color
+    addi $a0, $zero, 22
+    addi $a1, $zero, 4
+    jal draw_rect
+    jal set_random_color
+    addi $a0, $zero, 22
+    addi $a1, $zero, 5
+    jal draw_rect
+#
+    lw $a3, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4 
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+#   
+    jr $ra
 
 
 
-j pill_shift # jump if a pill is needed to be drawn on the last slot
-
-get_pill:
-
-
-
-# generate a random pill at t
-# a0 x coord
-# a1 y coord
+# generate a random pill
+# s0 pill1 x
+# s1 pill1 y
+# s2 pill2 x
+# s2 pill2 y
 draw_pill:
 #
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    addi $sp, $sp, -4  
     sw $ra, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a0, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a1, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a2, 0($sp)
+    addi $sp, $sp, -4  
+    sw $a3, 0($sp)
 #
 
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
     li $s0, 10
     li $s1, 6
     li $s2, 10
     li $s3, 7
     jal collision_checker
     beq $s4, 1 respond_to_Q
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 6
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
+    li $a0, 16
+    li $a1, 4
+    jal fetch_color
+    li $a0, 10
+    li $a1, 6
+    jal draw_rect
+    
+    li $a0, 16
+    li $a1, 4
+    lw color black
+    jal draw_rect
+    
     li x_pill1, 10
     li y_pill1, 6
-    jal draw_rect
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 7
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
+    
+    li $a0, 16
+    li $a1, 5
+    jal fetch_color
+    
+    li $a0, 10
+    li $a1, 7
     li x_pill2 10
     li y_pill2 7
     jal draw_rect
+    
+    li $a0, 16
+    li $a1, 5
+    lw color black
+    jal draw_rect
+    jal pill_shift
+    
 #
+    lw $a3, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a2, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a1, 0($sp)
+    addi $sp, $sp, 4 
+    lw $a0, 0($sp)
+    addi $sp, $sp, 4 
     lw $ra, 0($sp)
     addi $sp, $sp, 4 
 #   
@@ -678,18 +957,6 @@ yellow_col_done:
 blue_col_done:
     jal blue_virus_done
     j virus_compare_complete_col
-
-
-# $a0 x coord
-# $a1, y coord
-fetch_color:
-    lw $t0, displayaddress      # $t0 = base address for display
-    sll $a0, $a0, 2             # Calculate the X offset to add to $t0 (multiply $a0 by 4)
-    sll $a1, $a1, 7             # Calculate the Y offset to add to $t0 (multiply $a1 by 128)
-    add $t2, $t0, $a1           # Add the Y offset to $t0, store the result in $t2
-    add $t2, $t2, $a0           # Add the X offset to $t2 ($t2 now is the location of the place to fetch color)
-    lw color, 0($t2)              # fetch color
-    jr $ra
     
     
 keyboard_input:
@@ -1176,12 +1443,12 @@ draw_scene:
         addi $a2, $zero, 1      
         addi $a3, $zero, 3       
             jal draw_rect
-        addi $a2, $zero, 1      
-        addi $a3, $zero, 1
         
     draw_virus_art:
         addi $a0, $zero, 21         # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 10         # Set the Y coordinate for the top left corner of the rectangle (in pixels)  
+        addi $a2, $zero, 1      
+        addi $a3, $zero, 1
         lw color, red
             jal draw_rect
         addi $a0, $zero, 22         # Set the X coordinate for the top left corner of the rectangle (in pixels)
@@ -1212,7 +1479,131 @@ draw_scene:
         addi $a0, $zero, 30          # Set the X coordinate for the top left corner of the rectangle (in pixels)
         addi $a1, $zero, 11         # Set the Y coordinate for the top left corner of the rectangle (in pixels)
             jal draw_rect
+    draw_mario:
+        addi $a0, $zero, 24         
+        addi $a1, $zero, 15          
+        addi $a2, $zero, 2
+        addi $a3, $zero, 1
+        lw color, white
+            jal draw_rect
+        addi $a0, $zero, 23         
+        addi $a1, $zero, 16          
+        addi $a2, $zero, 5
+        addi $a3, $zero, 1
+            jal draw_rect
+        addi $a0, $zero, 23         
+        addi $a1, $zero, 17          
+        addi $a2, $zero, 5
+        addi $a3, $zero, 5
+        lw color, rose
+            jal draw_rect
+        addi $a0, $zero, 22         
+        addi $a1, $zero, 19          
+        addi $a2, $zero, 1
+        addi $a3, $zero, 2
+        lw color, rose
+            jal draw_rect
+        addi $a0, $zero, 24         
+        addi $a1, $zero, 18         
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+        lw color, white
+            jal draw_rect
+        addi $a0, $zero, 26        
+        addi $a1, $zero, 18         
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect
+        addi $a0, $zero, 24        
+        addi $a1, $zero, 21         
+        addi $a2, $zero, 3
+        addi $a3, $zero, 1
+        lw color, black
+            jal draw_rect
+        addi $a0, $zero, 23        
+        addi $a1, $zero, 17         
+        addi $a2, $zero, 1
+        addi $a3, $zero, 2
+            jal draw_rect
+        addi $a0, $zero, 24        
+        addi $a1, $zero, 17         
+        addi $a2, $zero, 4
+        addi $a3, $zero, 1
+        lw color, grey
+            jal draw_rect
+        addi $a0, $zero, 27        
+        addi $a1, $zero, 17         
+        addi $a2, $zero, 1
+        addi $a3, $zero, 4
+        lw color, grey
+            jal draw_rect       
             
+        addi $a0, $zero, 22        
+        addi $a1, $zero, 22         
+        addi $a2, $zero, 7
+        addi $a3, $zero, 5
+        lw color, white
+            jal draw_rect
+        addi $a0, $zero, 24        
+        addi $a1, $zero, 22         
+        addi $a2, $zero, 3
+        addi $a3, $zero, 2
+        lw color, grey
+            jal draw_rect
+        addi $a0, $zero, 25        
+        addi $a1, $zero, 24         
+        addi $a2, $zero, 1
+        addi $a3, $zero, 1
+            jal draw_rect      
+        addi $a0, $zero, 21        
+        addi $a1, $zero, 29         
+        addi $a2, $zero, 3
+        addi $a3, $zero, 2
+        lw color, grey
+            jal draw_rect
+        addi $a0, $zero, 27        
+        addi $a1, $zero, 29         
+        addi $a2, $zero, 3
+        addi $a3, $zero, 2
+            jal draw_rect
+        addi $a0, $zero, 22        
+        addi $a1, $zero, 28         
+        addi $a2, $zero, 2
+        addi $a3, $zero, 1
+        lw color, white
+            jal draw_rect   
+        addi $a0, $zero, 27        
+        addi $a1, $zero, 28         
+        addi $a2, $zero, 2
+        addi $a3, $zero, 1
+            jal draw_rect       
+        addi $a0, $zero, 27        
+        addi $a1, $zero, 29         
+        addi $a2, $zero, 2
+        addi $a3, $zero, 1
+        lw color, black
+            jal draw_rect
+        addi $a0, $zero, 22        
+        addi $a1, $zero, 29         
+        addi $a2, $zero, 2
+        addi $a3, $zero, 1
+            jal draw_rect        
+        
+    draw_score_initial:
+        addi $a0, $zero, 26        
+        addi $a1, $zero, 3         
+        addi $a2, $zero, 3
+        addi $a3, $zero, 5
+        lw color, white
+            jal draw_rect
+        addi $a0, $zero, 27        
+        addi $a1, $zero, 4        
+        addi $a2, $zero, 1
+        addi $a3, $zero, 3
+        lw color, black
+            jal draw_rect    
+       addi $a2, $zero, 1      
+       addi $a3, $zero, 1
     draw_virus:
         do_red_again:
         li $s4, 0
@@ -1268,8 +1659,124 @@ draw_scene:
         addi $sp, $sp, 4
 #
         jr $ra
-
+        
+score_up:
+    addi score, score, 1
+    beq score, 2, draw_one
+    beq score, 3, draw_two
+    beq score, 4, draw_three
+    draw_complete:
+    jr $ra
     
+draw_one:
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+#
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 3         
+    addi $a2, $zero, 3
+    addi $a3, $zero, 5
+    lw color, black
+        jal draw_rect
+    addi $a0, $zero, 27        
+    addi $a1, $zero, 3        
+    addi $a2, $zero, 1
+    addi $a3, $zero, 5
+    lw color, white
+            jal draw_rect  
+#
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+    j draw_complete
+
+draw_two: 
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+#
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 3         
+    addi $a2, $zero, 3
+    addi $a3, $zero, 5
+    lw color, black
+        jal draw_rect
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 3        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+    lw color, white
+            jal draw_rect  
+    addi $a0, $zero, 28        
+    addi $a1, $zero, 3        
+    addi $a2, $zero, 1
+    addi $a3, $zero, 3
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 5        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 5        
+    addi $a2, $zero, 1
+    addi $a3, $zero, 3
+    lw color, white
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 7        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+    lw color, white
+            jal draw_rect  
+#
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+    j draw_complete
+
+draw_three:
+#
+        addi $sp, $sp, -4
+        sw $ra, 0($sp)
+#
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 3         
+    addi $a2, $zero, 3
+    addi $a3, $zero, 5
+    lw color, black
+        jal draw_rect
+    addi $a0, $zero, 28        
+    addi $a1, $zero, 3        
+    addi $a2, $zero, 1
+    addi $a3, $zero, 5
+    lw color, white
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 7        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+    lw color, white
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 5        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+            jal draw_rect  
+    addi $a0, $zero, 26        
+    addi $a1, $zero, 3        
+    addi $a2, $zero, 3
+    addi $a3, $zero, 1
+    lw color, white 
+            jal draw_rect
+#
+        lw $ra, 0($sp)
+        addi $sp, $sp, 4
+#
+    j draw_complete
+
+
 red_virus_done:
 #
         addi $sp, $sp, -4
@@ -1299,6 +1806,7 @@ red_virus_done:
         addi $a2, $zero, 1
         addi $a3, $zero, 1
             jal draw_rect
+        jal score_up
 #
         lw $a3, 0($sp)
         addi $sp, $sp, 4
@@ -1342,6 +1850,7 @@ yellow_virus_done:
         addi $a2, $zero, 1
         addi $a3, $zero, 1
             jal draw_rect
+        jal score_up
 #
         lw $a3, 0($sp)
         addi $sp, $sp, 4
@@ -1385,6 +1894,7 @@ blue_virus_done:
         addi $a2, $zero, 1
         addi $a3, $zero, 1
             jal draw_rect
+        jal score_up
 #
         lw $a3, 0($sp)
         addi $sp, $sp, 4
