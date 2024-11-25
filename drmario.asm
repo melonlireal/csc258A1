@@ -23,6 +23,7 @@ yellow:             .word   0xffff00
 blue:               .word   0x00ffff
 white:              .word   0xffffff
 black:              .word   0x000000
+pillList:           .space 400 # store all pill pos if necessary
 
 ##############################################################################
 # Immutable Data
@@ -192,6 +193,54 @@ draw_line:
     # Return to calling program
 jr $ra
 
+
+# iterate across pill panel, if position is black get pill from next position and loop back
+pill_shift:
+
+
+
+j pill_shift # jump if a pill is needed to be drawn on the last slot
+
+get_pill:
+
+
+
+# generate a random pill at t
+# a0 x coord
+# a1 y coord
+draw_pill:
+#
+    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
+    sw $ra, 0($sp)
+#
+
+    li $s0, 10
+    li $s1, 6
+    li $s2, 10
+    li $s3, 7
+    jal collision_checker
+    beq $s4, 1 respond_to_Q
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 6
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    li x_pill1, 10
+    li y_pill1, 6
+    jal draw_rect
+    jal set_random_color
+    addi $a0, $zero, 10
+    addi $a1, $zero, 7
+    addi $a2, $zero, 1      
+    addi $a3, $zero, 1 
+    li x_pill2 10
+    li y_pill2 7
+    jal draw_rect
+#
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 
+#   
+    jr $ra
 
 
 
@@ -1037,42 +1086,7 @@ bne color, 0x000000, pixel_exists
         addi $sp, $sp, 4
         #
         jr $ra
-
-
-# generate a random pill at t
-# a0 x coord
-# a1 y coord
-draw_pill:
-#
-    addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
-    sw $ra, 0($sp)
-#
-
-    li $s0, 10
-    li $s1, 6
-    li $s2, 10
-    li $s3, 7
-    jal collision_checker
-    beq $s4, 1 respond_to_Q
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 6
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
-    li x_pill1, 10
-    li y_pill1, 6
-    jal draw_rect
-    jal set_random_color
-    addi $a0, $zero, 10
-    addi $a1, $zero, 7
-    addi $a2, $zero, 1      
-    addi $a3, $zero, 1 
-    li x_pill2 10
-    li y_pill2 7
-    jal draw_rect
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 
-    jr $ra
+        
     
 set_random_color:
     addi $sp, $sp, -4           # move the stack pointer to the next empty spot on the stack
