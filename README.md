@@ -4,3 +4,5 @@ DO NOT COPY THIS CODE FOR YOUR ASSIGNMENT. Doing so will lead to terrible conseq
 Also the purpose of this project is for you to learn assembly, which is tested on final. So even if you just copy this and get away with it its over for you on final.
 
 I HATE THIS GAME
+
+also only the drmario.asm is needed and ignore the commit history 
